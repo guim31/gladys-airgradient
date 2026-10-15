@@ -1,0 +1,51 @@
+{
+  "pm01": 2.5,
+  "pm02": 4.17,
+  "pm10": 4.83,
+  "pm01Standard": 2.5,
+  "pm02Standard": 4.17,
+  "pm10Standard": 4.83,
+  "pm003Count": 612.33,
+  "pm005Count": 540,
+  "pm01Count": 81.5,
+  "pm02Count": 6,
+  "atmp": 8.42,
+  "atmpCompensated": 7.95,
+  "rhum": 81.3,
+  "rhumCompensated": 86.1,
+  "pm02Compensated": 3.12,
+  "channels": {
+    "1": {
+      "pm01": 2.33,
+      "pm02": 4,
+      "pm10": 4.67,
+      "pm003Count": 600.67,
+      "atmp": 8.4,
+      "atmpCompensated": 7.93,
+      "rhum": 81.1,
+      "rhumCompensated": 85.9,
+      "pm02Compensated": 3.01
+    },
+    "2": {
+      "pm01": 2.67,
+      "pm02": 4.33,
+      "pm10": 5,
+      "pm003Count": 624,
+      "atmp": 8.44,
+      "atmpCompensated": 7.97,
+      "rhum": 81.5,
+      "rhumCompensated": 86.3,
+      "pm02Compensated": 3.23
+    }
+  },
+  "tvocIndex": 87,
+  "tvocRaw": 31211.5,
+  "noxIndex": 1,
+  "noxRaw": 16840.25,
+  "boot": 512,
+  "bootCount": 512,
+  "wifi": -71,
+  "serialno": "02c0ffee0006",
+  "firmware": "3.3.9",
+  "model": "O-1PPT"
+}

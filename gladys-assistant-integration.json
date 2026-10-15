@@ -1,101 +1,309 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "AirGradient",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "AirGradient air quality monitors on the local network: CO₂, PM2.5, VOC, temperature, humidity.",
+    "fr": "Capteurs de qualité de l'air AirGradient en réseau local : CO₂, PM2,5, COV, température, humidité.",
+    "de": "AirGradient-Luftqualitätsmessgeräte im lokalen Netzwerk: CO₂, PM2,5, VOC, Temperatur, Feuchte.",
+    "es": "Sensores de calidad del aire AirGradient en la red local: CO₂, PM2,5, COV, temperatura, humedad."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-airgradient:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-airgradient/main/cover.png",
+  "categories": ["environment"],
+  "transports": ["local"],
+  "network_discovery": [
+    {
+      "type": "mdns",
+      "service": "_airgradient._tcp"
+    }
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Finding your monitors",
+        "fr": "Trouver vos capteurs",
+        "de": "Deine Messgeräte finden",
+        "es": "Encontrar sus sensores"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "AirGradient monitors (ONE, Open Air, DIY kits, firmware 3.1 or later) on the same network as Gladys are found automatically (mDNS): open the Discover tab. If one is missing, enter its IP address below.",
+        "fr": "Les capteurs AirGradient (ONE, Open Air, kits DIY, firmware 3.1 ou plus récent) du même réseau que Gladys sont trouvés automatiquement (mDNS) : ouvrez l'onglet Découverte. S'il en manque un, saisissez son adresse IP ci-dessous.",
+        "de": "AirGradient-Messgeräte (ONE, Open Air, DIY-Kits, Firmware 3.1 oder neuer) im selben Netzwerk wie Gladys werden automatisch gefunden (mDNS): Öffne den Tab „Entdecken“. Fehlt eines, gib unten seine IP-Adresse ein.",
+        "es": "Los sensores AirGradient (ONE, Open Air, kits DIY, firmware 3.1 o posterior) de la misma red que Gladys se encuentran automáticamente (mDNS): abra la pestaña Descubrir. Si falta alguno, introduzca su dirección IP a continuación."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-airgradient/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "hosts",
+      "type": "string",
+      "label": {
+        "en": "Monitor IP addresses",
+        "fr": "Adresses IP des capteurs",
+        "de": "IP-Adressen der Messgeräte",
+        "es": "Direcciones IP de los sensores"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "Optional, separated by commas. Only needed for the monitors automatic discovery does not find.",
+        "fr": "Facultatif, séparées par des virgules. Seulement pour les capteurs que la découverte automatique ne trouve pas.",
+        "de": "Optional, durch Kommas getrennt. Nur für Messgeräte nötig, die die automatische Erkennung nicht findet.",
+        "es": "Opcional, separadas por comas. Solo para los sensores que el descubrimiento automático no encuentra."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "placeholder": {
+        "en": "e.g. 192.168.1.50, 192.168.1.51",
+        "fr": "ex. 192.168.1.50, 192.168.1.51",
+        "de": "z. B. 192.168.1.50, 192.168.1.51",
+        "es": "p. ej. 192.168.1.50, 192.168.1.51"
+      },
       "required": false,
-      "default": "celsius",
+      "default": ""
+    },
+    {
+      "key": "refresh_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Fréquence de lecture",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de lectura"
+      },
+      "description": {
+        "en": "How often each monitor is read. The monitors average their sensors over about a minute.",
+        "fr": "Fréquence de lecture de chaque capteur. Les capteurs moyennent leurs mesures sur environ une minute.",
+        "de": "Wie oft jedes Messgerät gelesen wird. Die Messgeräte mitteln ihre Sensoren über etwa eine Minute.",
+        "es": "Frecuencia de lectura de cada sensor. Los sensores promedian sus mediciones durante un minuto aproximadamente."
+      },
+      "required": false,
+      "default": "60",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "device_settings",
+      "type": "select",
+      "label": {
+        "en": "Monitor settings from Gladys",
+        "fr": "Réglages des capteurs depuis Gladys",
+        "de": "Einstellungen der Messgeräte aus Gladys",
+        "es": "Ajustes de los sensores desde Gladys"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Adds the display and LED bar brightness, the LED bar mode and the display temperature unit to the devices (ONE and DIY kits). Click Update in the Discover tab afterwards.",
+        "fr": "Ajoute aux appareils la luminosité de l'écran et de la barre LED, le mode de la barre LED et l'unité de température de l'écran (ONE et kits DIY). Cliquez ensuite sur Mettre à jour dans l'onglet Découverte.",
+        "de": "Fügt den Geräten die Helligkeit von Display und LED-Leiste, den Modus der LED-Leiste und die Temperatureinheit des Displays hinzu (ONE und DIY-Kits). Klicke danach im Tab „Entdecken“ auf „Aktualisieren“.",
+        "es": "Añade a los dispositivos el brillo de la pantalla y de la barra LED, el modo de la barra LED y la unidad de temperatura de la pantalla (ONE y kits DIY). Después, pulse Actualizar en la pestaña Descubrir."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "off",
+      "options": [
+        {
+          "value": "off",
+          "label": {
+            "en": "No, measurements only",
+            "fr": "Non, mesures seulement",
+            "de": "Nein, nur Messwerte",
+            "es": "No, solo mediciones"
+          }
+        },
+        {
+          "value": "on",
+          "label": {
+            "en": "Yes, add the settings",
+            "fr": "Oui, ajouter les réglages",
+            "de": "Ja, Einstellungen hinzufügen",
+            "es": "Sí, añadir los ajustes"
+          }
+        }
+      ]
+    },
+    {
+      "key": "co2_calibration",
+      "type": "select",
+      "label": {
+        "en": "CO₂ calibration from scenes",
+        "fr": "Calibration du CO₂ depuis les scènes",
+        "de": "CO₂-Kalibrierung aus Szenen",
+        "es": "Calibración del CO₂ desde escenas"
+      },
+      "description": {
+        "en": "The calibration takes the current reading as 400 ppm: only run it with the monitor in fresh outdoor air, or every later reading is wrong.",
+        "fr": "La calibration prend la mesure actuelle pour 400 ppm : ne la lancez qu'avec le capteur à l'air libre extérieur, sinon toutes les mesures suivantes sont fausses.",
+        "de": "Die Kalibrierung nimmt den aktuellen Messwert als 400 ppm: Starte sie nur, wenn das Messgerät an frischer Außenluft ist, sonst sind alle späteren Messwerte falsch.",
+        "es": "La calibración toma la medición actual como 400 ppm: ejecútela solo con el sensor al aire libre, o todas las mediciones posteriores serán erróneas."
+      },
+      "required": false,
+      "default": "off",
+      "options": [
+        {
+          "value": "off",
+          "label": {
+            "en": "Not allowed",
+            "fr": "Interdite",
+            "de": "Nicht erlaubt",
+            "es": "No permitida"
+          }
+        },
+        {
+          "value": "on",
+          "label": {
+            "en": "Allowed",
+            "fr": "Autorisée",
+            "de": "Erlaubt",
+            "es": "Permitida"
+          }
+        }
+      ]
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms de fonctionnalités",
+        "de": "Sprache der Funktionsnamen",
+        "es": "Idioma de los nombres de las funciones"
+      },
+      "description": {
+        "en": "Names given to the features of new devices (CO₂, Temperature, Humidity...).",
+        "fr": "Noms donnés aux fonctionnalités des nouveaux appareils (CO₂, Température, Humidité…).",
+        "de": "Namen, die den Funktionen neuer Geräte gegeben werden (CO₂, Temperatur, Luftfeuchtigkeit…).",
+        "es": "Nombres dados a las funciones de los nuevos dispositivos (CO₂, Temperatura, Humedad…)."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
+      "key": "search",
+      "label": {
+        "en": "Search for monitors",
+        "fr": "Rechercher les capteurs",
+        "de": "Messgeräte suchen",
+        "es": "Buscar sensores"
+      },
+      "description": {
+        "en": "Looks for AirGradient monitors again and lists the ones found.",
+        "fr": "Recherche à nouveau les capteurs AirGradient et liste ceux trouvés.",
+        "de": "Sucht erneut nach AirGradient-Messgeräten und listet die gefundenen auf.",
+        "es": "Busca de nuevo los sensores AirGradient e indica los encontrados."
+      },
+      "timeout_seconds": 60
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
+      "key": "use_local_settings",
+      "label": {
+        "en": "Use local settings",
+        "fr": "Réglages locaux",
+        "de": "Lokale Einstellungen",
+        "es": "Ajustes locales"
+      },
+      "description": {
+        "en": "Makes a monitor take its settings from the local network only, so Gladys can change them. Those of the AirGradient dashboard then no longer apply.",
+        "fr": "Fait prendre à un capteur ses réglages du réseau local seulement, pour que Gladys puisse les changer. Ceux du tableau de bord AirGradient ne s'appliquent alors plus.",
+        "de": "Lässt ein Messgerät seine Einstellungen nur noch aus dem lokalen Netzwerk nehmen, damit Gladys sie ändern kann. Die des AirGradient-Dashboards gelten dann nicht mehr.",
+        "es": "Hace que un sensor tome sus ajustes solo de la red local, para que Gladys pueda cambiarlos. Los del panel de AirGradient dejan de aplicarse."
+      },
+      "timeout_seconds": 30,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Monitor",
+            "fr": "Capteur",
+            "de": "Messgerät",
+            "es": "Sensor"
+          },
           "required": true
         }
       ]
@@ -103,75 +311,118 @@
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "monitor_unreachable",
+      "label": {
+        "en": "AirGradient monitor not answering",
+        "fr": "Capteur AirGradient muet",
+        "de": "AirGradient-Messgerät antwortet nicht",
+        "es": "Sensor AirGradient sin respuesta"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A monitor stopped answering on the network (three readings in a row): unplugged, out of Wi-Fi range or moved to another address. Its last values stay in Gladys.",
+        "fr": "Un capteur ne répond plus sur le réseau (trois lectures de suite) : débranché, hors de portée du Wi-Fi ou passé à une autre adresse. Ses dernières valeurs restent dans Gladys.",
+        "de": "Ein Messgerät antwortet nicht mehr im Netzwerk (drei Messungen hintereinander): ausgesteckt, außer WLAN-Reichweite oder an einer anderen Adresse. Seine letzten Werte bleiben in Gladys.",
+        "es": "Un sensor ha dejado de responder en la red (tres lecturas seguidas): desenchufado, fuera del alcance del Wi-Fi o con otra dirección. Sus últimos valores permanecen en Gladys."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "label": {
+            "en": "Monitor",
+            "fr": "Capteur",
+            "de": "Messgerät",
+            "es": "Sensor"
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Monitor name",
+            "fr": "Nom du capteur",
+            "de": "Name des Messgeräts",
+            "es": "Nombre del sensor"
+          }
+        },
+        {
+          "key": "address",
+          "type": "string",
+          "label": {
+            "en": "IP address",
+            "fr": "Adresse IP",
+            "de": "IP-Adresse",
+            "es": "Dirección IP"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "calibrate_co2",
+      "label": {
+        "en": "Calibrate the AirGradient CO₂ sensor",
+        "fr": "Calibrer le capteur de CO₂ AirGradient",
+        "de": "AirGradient-CO₂-Sensor kalibrieren",
+        "es": "Calibrar el sensor de CO₂ AirGradient"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Takes the current CO₂ reading as 400 ppm (fresh outdoor air). Must first be allowed in the integration configuration.",
+        "fr": "Prend la mesure de CO₂ actuelle pour 400 ppm (air extérieur frais). Doit d'abord être autorisée dans la configuration de l'intégration.",
+        "de": "Nimmt den aktuellen CO₂-Messwert als 400 ppm (frische Außenluft). Muss zuerst in der Konfiguration der Integration erlaubt werden.",
+        "es": "Toma la medición actual de CO₂ como 400 ppm (aire exterior fresco). Debe permitirse primero en la configuración de la integración."
+      },
+      "timeout_seconds": 20,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Monitor",
+            "fr": "Capteur",
+            "de": "Messgerät",
+            "es": "Sensor"
+          },
           "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "air_quality",
+      "label": {
+        "en": "Air quality",
+        "fr": "Qualité de l'air",
+        "de": "Luftqualität",
+        "es": "Calidad del aire"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "CO₂, PM2.5, temperature and humidity of a monitor, with the air quality in colour.",
+        "fr": "CO₂, PM2,5, température et humidité d'un capteur, avec la qualité de l'air en couleur.",
+        "de": "CO₂, PM2,5, Temperatur und Feuchte eines Messgeräts, mit der Luftqualität in Farbe.",
+        "es": "CO₂, PM2,5, temperatura y humedad de un sensor, con la calidad del aire en color."
+      },
+      "icon": "wind",
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Monitor",
+            "fr": "Capteur",
+            "de": "Messgerät",
+            "es": "Sensor"
+          },
+          "required": true
+        }
+      ]
     }
   ]
 }

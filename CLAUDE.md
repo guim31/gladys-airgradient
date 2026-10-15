@@ -16,12 +16,14 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "unplugged" # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
 npx github:GladysAssistant/integration-store .   # store admission checks
+npm run fake -- one-3.1.21.json 8080      # fake monitor on 127.0.0.1:8080
+npm run probe -- 192.168.1.50             # read-only probe of a real monitor
 ```
 
 The CI (`.github/workflows/ci.yml`) runs `format:check`, `lint` and `test` on
@@ -31,16 +33,27 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: registerHandlers() then connect()
+src/app.js                        every SDK handler -> hub; configuration actions
+src/hub.js                        monitors, discovery, internal timer, states, settings, trigger
+src/airgradient/client.js         HTTP client of the local API (legacy and /api/v1 routes)
+src/airgradient/model.js          measures and /config parsing, model families, feature keys
+src/devices.js                    the Gladys device of a monitor (features, names in 4 languages)
+src/discovery.js                  mDNS answers relayed by the core (`_airgradient._tcp`)
+src/levels.js                     air quality levels of the widget (AirGradient LED bar colours)
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
 src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/messages.js                   texts sent from the container (en, fr, de, es)
+src/store.js                      /data/airgradient.json (atomic, coalesced writes)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+scripts/probe.mjs                 read-only probe of a real monitor (`--raw`: anonymized fixtures)
+scripts/fake-airgradient.mjs      a fake monitor on the loopback, from a fixture
+gladys-assistant-integration.json manifest: name, config_schema, actions, scenes, widget...
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+test/helpers/fakeAirGradient.js   fake monitor (in-memory fetch, or real HTTP on the loopback)
+test/helpers/world.js             fake Gladys + fake monitors + manual clock + temporary /data
+test/fixtures/airgradient/        real answers (python-airgradient, Home Assistant), anonymized
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +83,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in four languages (English, French, German,
+  Spanish): action messages, manifest texts, feature names, widget texts, and
+  `docs/en.md` / `fr.md` / `de.md` / `es.md`, kept in sync with the same
+  sections (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +248,46 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Intégration AirGradient
+
+**API locale** (firmware `airgradienthq/arduino`, `examples/OneOpenAir/LocalServer.cpp`,
+`src/AgValue.cpp`, `src/AgConfigure.cpp`) : HTTP port 80, sans authentification.
+`GET /measures/current`, `GET /config`, `PUT /config` (JSON, réponse **200 `Success`** ou **400 en
+texte brut** avec la raison). Les firmwares récents (AirGradient Go) n'ont que `GET /api/v1/measures`
+et `/api/v1/config` (autres noms de champs : `serialNumber`, `co2`, `pm25`, `temperature`,
+`wifiRssi`, `battPercent`) ; la route ancienne y répond un 404 **nu** (texte), d'où la détection
+de la bibliothèque Python, reprise telle quelle. mDNS : `_airgradient._tcp`, TXT `serialno`, `model`,
+`fw_ver`, `vendor=AirGradient` (`api=1` pour le v1).
+
+**Pièges relevés**
+
+- Le firmware **omet** un capteur absent ou une mesure invalide (juste après un démarrage, il n'y a
+  que `wifi`, `boot`…) : les fonctionnalités viennent de la famille du modèle **et** de tout ce que le
+  capteur a déjà envoyé (gardé dans `/data`), sinon l'appareil rétrécit et Gladys propose
+  « Mettre à jour » à chaque redémarrage.
+- Les codes modèle : `I-9PSL` (ONE), `O-1PST`/`O-1PPT`/`O-1PP`/`O-1P`, et **`0-1PS` avec un zéro**
+  (faute du firmware), `P-1PSG` (Go), `DIY-…`. Lettres de l'Open Air : P = PM (+ temp./hum.),
+  S = CO₂, T = COV/NOx.
+- Un vieux firmware Open Air (3.1.1) ne met les PM **que** sous `channels` (fixture Home Assistant) :
+  moyenne des canaux. Les récents donnent la moyenne en haut et les canaux en plus.
+- Valeurs corrigées préférées (`pm02Compensated`, `atmpCompensated`, `rhumCompensated`), comme la
+  bibliothèque Python ; un compensé à 0 est une mesure.
+- `configurationControl: "cloud"` : tout `PUT /config` est refusé (400, message contenant
+  « cloud »), **sauf** un `PUT {"configurationControl":"local"}`, que le code du firmware accepte
+  (la doc parle de réinitialisation, le code non). D'où l'action « Réglages locaux ». En `both`, le
+  tableau de bord AirGradient peut écraser un réglage fait localement.
+- `/config` peut contenir `mqttBrokerUrl` (avec identifiants) et `httpDomain` : **jamais dans les
+  journaux** ni dans les sorties de `scripts/probe.mjs` (testé).
+- Le Wi-Fi à 0 dBm = ESP32 non associé : pas une mesure.
+- **Catégories Gladys** : pas de PM1 (→ `pm25-sensor`, comme la table Matter du cœur), pas de NOx
+  (→ `voc-index-sensor/integer` ; `no2-matter-index-sensor` attend des niveaux texte Matter `low`,
+  `medium`… convertis par le front, un indice 1-500 y serait faux), pas d'unité « par dL »
+  (→ `counter-sensor/integer`, l'unité dans le nom). Le signal Wi-Fi en dBm passe par `signal` avec
+  `min: -100`, `max: -30` : le front calcule les barres depuis ces bornes.
+- La température arrive **toujours en °C** sur le fil ; `temperatureUnit` ne règle que l'écran.
+- Calibration CO₂ : la mesure courante devient 400 ppm. Désactivée par défaut
+  (`co2_calibration`), action de scène seulement, jamais une fonctionnalité d'appareil.
+- Python-airgradient est **MIT** (pas Apache), Home Assistant Apache-2.0, le firmware et sa doc en
+  CC BY-SA 4.0 : lus, rien recopié. Les fixtures Open Air et DIY de `test/fixtures/airgradient` sont
+  **construites** d'après le firmware : les remplacer par des captures (`npm run probe -- <ip> --raw`).
