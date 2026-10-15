@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-15
+
 ### Added
 
 - AirGradient air quality monitors in Gladys, over their local API (no account,
@@ -34,4 +36,5 @@ the notes of the version's GitHub Release.
 - Texts, feature names and documentation in English, French, German and
   Spanish.
 
-[Unreleased]: https://github.com/guim31/gladys-airgradient/commits/main
+[Unreleased]: https://github.com/guim31/gladys-airgradient/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-airgradient/releases/tag/v1.0.1

@@ -8,8 +8,8 @@
     "de": "AirGradient-Luftqualitätsmessgeräte im lokalen Netzwerk: CO₂, PM2,5, VOC, Temperatur, Feuchte.",
     "es": "Sensores de calidad del aire AirGradient en la red local: CO₂, PM2,5, COV, temperatura, humedad."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/guim31/gladys-airgradient:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/guim31/gladys-airgradient:1.0.1",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/guim31/gladys-airgradient/main/cover.png",
   "categories": ["environment"],
