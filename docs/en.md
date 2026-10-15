@@ -1,61 +1,180 @@
-# Demo Devices Template
+# AirGradient
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+This integration brings the **AirGradient** air quality monitors into Gladys: the AirGradient ONE
+(indoor), the Open Air (outdoor), the DIY kits and the AirGradient Go. It reads them on your local
+network, over the local API of their firmware: no account, no cloud, no API key.
+
+> **Developed without the hardware: feedback welcome.** The integration was written from the
+> AirGradient firmware source, the documentation of its local API and the real answers published
+> with the `airgradient` Python library and the Home Assistant integration. It has not been tried
+> on a real monitor yet: tell us on the Gladys forum what works and what does not.
+
+This integration is not affiliated with AirGradient.
 
 ## What you get
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+- **One device per monitor**, found automatically on your network (mDNS), or added by its IP
+  address.
+- Its measurements, refreshed every minute: **PM1, PM2.5, PM10, CO₂, temperature, humidity, TVOC
+  index, NOx index, 0.3 µm particle count, Wi-Fi signal** (and the battery of the Go). Only what
+  your model measures: an Open Air without CO₂ sensor gets no CO₂ feature.
+- The **corrected values** when the firmware provides them (PM2.5 with the EPA correction,
+  temperature and humidity of the Open Air): they are the ones the monitor shows.
+- As an option, the **monitor settings** from Gladys: display brightness, LED bar brightness, LED
+  bar mode and display temperature unit (AirGradient ONE, DIY kits).
+- An **"Air quality" dashboard widget**: the live readings and the air quality in colour.
+- A **scene trigger** when a monitor stops answering, and a **scene action** to calibrate the CO₂
+  sensor (disabled by default).
+
+## Requirements
+
+- Gladys Assistant **5.1.0** or later.
+- An AirGradient monitor on firmware **3.1** or later (3.0.10 for the local API, 3.1.4 for the
+  corrected PM2.5), connected to the same network as Gladys, or to a network Gladys can reach.
+- Nothing else: the local API needs no password.
+
+To find the IP address of a monitor: your router's list of connected devices (the monitor is
+called `airgradient_<serial number>`), or the AirGradient dashboard, under the monitor's details.
 
 ## Configuration
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+Install the integration from **Integrations → Install from the store** (or **Install from
+GitHub**), then open its **Configuration** tab.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+### Settings
 
-## Actions
+| Setting                       | Default     | What it does                                                                                     |
+| ----------------------------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| Monitor IP addresses          | empty       | Optional. Addresses the automatic discovery does not find, separated by commas (`192.168.1.50`). |
+| Refresh interval              | 1 minute    | How often each monitor is read: 30 seconds, 1, 2 or 5 minutes.                                   |
+| Monitor settings from Gladys  | No          | Adds the display and LED bar settings to the devices (see below).                                |
+| CO₂ calibration from scenes   | Not allowed | Allows the "Calibrate the CO₂ sensor" scene action.                                              |
+| Language of the feature names | French      | Names given to the features of new devices.                                                      |
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+### Finding the monitors
 
-## Scenes
+The monitors announce themselves on the network (mDNS, service `_airgradient._tcp`). The
+integration runs in a container that cannot hear these announcements: Gladys listens for it and
+passes them on. Open the **Discover** tab, then add the monitors you want.
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+If a monitor is missing (another network, a VLAN, mDNS filtered by the router), type its IP
+address in **Monitor IP addresses**. The **Search for monitors** button looks for them again and
+lists what it found. A monitor that changes address (DHCP) is followed by its serial number: its
+device stays the same. Giving it a fixed address in your router is still the most reliable.
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+### Monitor settings from Gladys
 
-## Dashboard
+With **Monitor settings from Gladys** set to **Yes**, the devices of the AirGradient ONE and of the
+DIY kits get extra features:
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+- **Display brightness** and **LED bar brightness** (0 to 100 %, the LED bar on the ONE only);
+- **LED bar mode**: off, CO₂ or PM2.5 (ONE only);
+- **Display temperature unit**: °C or °F, for the monitor's screen only — Gladys always receives
+  the temperature in °C and shows it in your own unit.
+
+After changing this setting, click **Update** on the monitor in the **Discover** tab.
+
+A monitor set up on the AirGradient dashboard may take its settings from the cloud only. Gladys
+then cannot change them: run **Use local settings** in the Configuration tab and choose the
+monitor. From then on, the monitor only takes its settings from the local network, and the
+settings of the AirGradient dashboard no longer apply to it.
+
+## Devices
+
+Each monitor is a device named after its model and the end of its serial number (for example
+"AirGradient ONE 12f5"): rename it as you like.
+
+| Feature          | Unit          | Notes                                                               |
+| ---------------- | ------------- | ------------------------------------------------------------------- |
+| PM1              | µg/m³         | Gladys has no PM1 category: it is shown with the PM2.5 icon.        |
+| PM2.5            | µg/m³         | Corrected value when the firmware provides it.                      |
+| PM10             | µg/m³         |                                                                     |
+| CO₂              | ppm           | ONE, Open Air with CO₂ sensor, Go, most DIY kits.                   |
+| Temperature      | °C            | Corrected value on the Open Air.                                    |
+| Humidity         | %             | Corrected value on the Open Air.                                    |
+| TVOC index       | 1 to 500      | Sensirion index: 100 is the average of the last day, more is worse. |
+| NOx index        | 1 to 500      | Sensirion index: 1 is the normal level, more means nitrogen oxides. |
+| 0.3 µm particles | per decilitre | Raw particle count of the PM sensor.                                |
+| Battery          | %             | AirGradient Go only.                                                |
+| Wi-Fi signal     | dBm           | -30 is excellent, -80 is weak.                                      |
+
+The values are rounded (temperature to 0.1 °C, humidity to 1 %, particles to 0.1 µg/m³) and only
+sent to Gladys when they change; an unchanged value is sent again every 12 hours. The device shows
+a "local" badge, or "unreachable" when the monitor does not answer.
+
+## Dashboard widget
+
+Add the **Air quality** widget (AirGradient) to a dashboard and choose a monitor in its settings.
+It shows the live CO₂, PM2.5, temperature and humidity, and a coloured status:
+
+| Level     | CO₂ (ppm)  | PM2.5 (µg/m³) |
+| --------- | ---------- | ------------- |
+| Good      | up to 800  | up to 9       |
+| Moderate  | up to 1000 | up to 35      |
+| Poor      | up to 1500 | up to 55      |
+| Very poor | above 1500 | above 55      |
+
+These are the colours of the AirGradient LED bar (for PM2.5, the US EPA breakpoints; the WHO
+24-hour guideline, 15 µg/m³, is in the "moderate" band). The overall air quality is the worst of
+the two.
+
+## Scene trigger
+
+**AirGradient monitor not answering**: a monitor stopped answering (three readings in a row,
+three minutes with the default interval). Filter on a monitor, or leave it empty for any monitor.
+Variables: the monitor name and its IP address. It fires once, when the monitor is lost; its last
+values stay in Gladys.
+
+There is no trigger for "CO₂ above 1000": use the usual device trigger of Gladys on the CO₂
+feature, with your own threshold.
+
+## Scene action
+
+**Calibrate the AirGradient CO₂ sensor**: the sensor takes its current reading as 400 ppm, the
+level of fresh outdoor air. It is refused until you set **CO₂ calibration from scenes** to
+**Allowed**. Only run it with the monitor outdoors (or by a wide open window) for several minutes:
+indoors, every later reading would be too low. The CO₂ sensor of the monitors also recalibrates
+itself over a few days (automatic baseline calibration): most users never need this action.
+
+## Scene examples
+
+- **Air the room**: when the CO₂ of the bedroom goes above 1200 ppm, send a message "Open the
+  window" — and when it goes back below 800 ppm, "You can close it".
+- **Wildfire smoke or pollution**: when the PM2.5 of the Open Air goes above 35 µg/m³, close the
+  shutters and turn the air purifier on.
+- **Monitor lost**: with the trigger "AirGradient monitor not answering", send a message with
+  `{{triggerEvent.data.name}}` and its address.
+- **Night mode** (with the settings): at 10 pm, set the display brightness and the LED bar
+  brightness of the ONE to 0; at 7 am, set them back to 80.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **No monitor in the Discover tab**: check that the monitor is connected to Wi-Fi (its screen
+  shows the readings, not a setup message), then type its IP address in **Monitor IP addresses**
+  and click **Search for monitors**. The report says whether the automatic discovery is available.
+- **"does not answer"**: the monitor is off, out of Wi-Fi range, or has a new address. Open
+  `http://<IP address>/measures/current` in a browser of the same network: it should show the
+  readings in JSON. Firmware older than 3.0.10 has no local API: update it from the monitor.
+- **A setting is refused, "only accepts settings from the AirGradient cloud"**: run **Use local
+  settings**.
+- **A value is missing right after a restart of the monitor**: the sensors need up to a minute
+  before their first reading; the value appears at the next refresh.
+- **Logs**: the Supervision page of Gladys shows the logs of the integration. They are quiet on
+  purpose: a line when a monitor is found, lost or back, and one per action. Set the
+  `LOG_LEVEL=debug` variable to see every reading.
+
+## Limits
+
+- The integration reads the **local API** only. The AirGradient cloud API (with a token) is not
+  supported: a monitor must be reachable from Gladys on the network.
+- The local API has no password: anyone on your network can read a monitor, and change its
+  settings if it accepts local settings. This is how the firmware works.
+- The settings of the **AirGradient Go** (newer API) and of the **Open Air** (no screen) are not
+  offered; their measurements are.
+- The TVOC and NOx indexes are shown with the "Sensirion VOC index" category: Gladys has no NOx
+  category. PM1 uses the PM2.5 category.
+- The readings are averages computed by the monitor; refreshing more often than every 30 seconds
+  would only repeat them. The local API has no quota, but the monitor is a small device: one
+  reading a minute is what Home Assistant does too.
+- The settings changed from the AirGradient dashboard are not seen by Gladys until the next
+  reading.

@@ -1,93 +1,63 @@
+// -----------------------------------------------------------------------------
+// The scene action `calibrate_co2`, off by default: a calibration indoors
+// spoils every later reading of the monitor.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
-import { MOTION_DETECTED_TRIGGER, motionSensor } from '../src/devices/motionSensor.js';
-import { SCENE_ACTIONS } from '../src/scenes.js';
-import { normalizeConfig } from '../src/config.js';
+import { FakeMonitor, fixture } from './helpers/fakeAirGradient.js';
+import { create, createWorld } from './helpers/world.js';
 
-const manifest = JSON.parse(
-  await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
-);
-const config = normalizeConfig();
+async function world(t, options) {
+  const w = await createWorld(options);
+  t.after(() => w.app.stop());
+  return w;
+}
 
-const declarationOf = (list, key) => manifest[list].find((entry) => entry.key === key);
-const keysOf = (list) => (list ?? []).map((entry) => entry.key);
-const deviceIdOf = (gladys, key) =>
-  DEVICE_BLUEPRINTS.find((bp) => bp.key === key).deviceExternalId(gladys);
-
-// Let the async interval callback run to completion.
-const flush = () => new Promise((resolve) => setImmediate(resolve));
-
-test('the motion sensor fires one motion_detected event per detection, none on the clear', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const gladys = createFakeGladys();
-  const stopPush = motionSensor.startPush(gladys, config);
-  try {
-    t.mock.timers.tick(60_000);
-    await flush();
-    assert.equal(gladys.fake.sceneEvents.length, 1, 'one detection, one event');
-    assert.equal(gladys.fake.sceneEvents[0].key, MOTION_DETECTED_TRIGGER);
-    assert.equal(gladys.fake.states.at(-1).state, 1, 'the state is still published');
-
-    t.mock.timers.tick(10_000);
-    await flush();
-    assert.equal(gladys.fake.states.at(-1).state, 0, 'the detection is cleared');
-    assert.equal(gladys.fake.sceneEvents.length, 1, 'the clear fires no event');
-  } finally {
-    stopPush();
-  }
+test('the calibration is refused while the configuration does not allow it', async (t) => {
+  const w = await world(t, { config: { language: 'fr' } });
+  const one = await create(w, '192.0.2.10');
+  const result = await w.fake.sceneAction('calibrate_co2', { device: one.external_id });
+  assert.equal(result.success, false);
+  assert.match(result.error, /La calibration du CO₂ est désactivée/);
+  assert.equal(w.monitors['192.0.2.10'].calibrations, 0);
 });
 
-test('motion_detected data only carries keys the trigger declares', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const gladys = createFakeGladys();
-  const stopPush = motionSensor.startPush(gladys, config);
-  try {
-    t.mock.timers.tick(60_000);
-    await flush();
-  } finally {
-    stopPush();
-  }
-  const [{ data }] = gladys.fake.sceneEvents;
-  const trigger = declarationOf('scene_triggers', MOTION_DETECTED_TRIGGER);
-  // The core keeps the `fields` keys (filters) and the `variables` keys
-  // (exposed to the scene): any other key would be silently dropped.
-  const declared = [...keysOf(trigger.fields), ...keysOf(trigger.variables)];
-  for (const [key, value] of Object.entries(data)) {
-    assert.ok(declared.includes(key), `data.${key} is not declared, the core would drop it`);
-    assert.ok(value === null || typeof value !== 'object', `data.${key} must be a primitive`);
-  }
-  // A `"source": "devices"` filter stores a device external_id.
-  assert.equal(data.device, deviceIdOf(gladys, 'motion-sensor'));
-  const targets = trigger.fields.find((field) => field.key === 'target').options;
-  assert.ok(
-    targets.some((option) => option.value === data.target),
-    `data.target "${data.target}" must be one of the filter options`,
+test('allowed, it starts the calibration of a legacy firmware and of a v1 one', async (t) => {
+  const w = await world(t, { config: { co2_calibration: 'on' } });
+  const one = await create(w, '192.0.2.10');
+  const go = await create(w, '192.0.2.14');
+  assert.deepEqual(await w.fake.sceneAction('calibrate_co2', { device: one.external_id }), {
+    success: true,
+    data: { outputs: {} },
+  });
+  assert.equal(w.monitors['192.0.2.10'].calibrations, 1);
+  assert.equal(
+    (await w.fake.sceneAction('calibrate_co2', { device: go.external_id })).success,
+    true,
   );
+  assert.equal(w.monitors['192.0.2.14'].calibrations, 1);
 });
 
-test('identify_device signals the chosen device and returns the declared outputs', async () => {
-  const gladys = createFakeGladys();
-  const outputs = await SCENE_ACTIONS.identify_device(gladys, {
-    fields: { device: deviceIdOf(gladys, 'light') },
-    config,
-  });
-  assert.deepEqual(outputs, { signalled: true });
-  const declared = keysOf(declarationOf('scene_actions', 'identify_device').outputs);
-  for (const key of Object.keys(outputs)) {
-    assert.ok(declared.includes(key), `output "${key}" is not declared, the core would drop it`);
-  }
-});
-
-test('identify_device reports a device that cannot signal itself through its output', async () => {
-  // Not a failure: a scene action is never a condition, the scene author
-  // gates the following actions on the output instead.
-  const gladys = createFakeGladys();
-  const outputs = await SCENE_ACTIONS.identify_device(gladys, {
-    fields: { device: deviceIdOf(gladys, 'weather-station') },
-    config,
-  });
-  assert.deepEqual(outputs, { signalled: false });
+test('a monitor without CO₂ sensor, a cloud-locked or a silent one: a clear error', async (t) => {
+  const monitors = {
+    '192.0.2.11': new FakeMonitor({ measures: fixture('open-air-o-1ppt-3.3.9.json') }),
+    '192.0.2.10': new FakeMonitor({
+      measures: fixture('one-3.1.1.json'),
+      config: fixture('config-one-cloud.json'),
+    }),
+  };
+  const w = await world(t, { monitors, config: { co2_calibration: 'on', language: 'en' } });
+  const openAir = await create(w, '192.0.2.11');
+  const one = await create(w, '192.0.2.10');
+  const noSensor = await w.fake.sceneAction('calibrate_co2', { device: openAir.external_id });
+  assert.match(noSensor.error, /has no CO₂ sensor/);
+  const locked = await w.fake.sceneAction('calibrate_co2', { device: one.external_id });
+  assert.match(locked.error, /only accepts settings from the AirGradient cloud/);
+  monitors['192.0.2.10'].online = false;
+  const silent = await w.fake.sceneAction('calibrate_co2', { device: one.external_id });
+  assert.match(silent.error, /does not answer/);
+  const unknown = await w.fake.sceneAction('calibrate_co2', { device: 'nope' });
+  assert.match(unknown.error, /Unknown AirGradient monitor/);
+  assert.equal(monitors['192.0.2.10'].calibrations, 0);
 });
